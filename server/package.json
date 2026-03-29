@@ -1,0 +1,19 @@
+{
+    "name": "cheating-dev-auth-api",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Auth and subscription API for Cheating-Dev desktop app",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node --watch index.js"
+    },
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "better-sqlite3": "^11.7.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "jsonwebtoken": "^9.0.2"
+    }
+}

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cheating-Dev — User admin</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; background: #0f1115; color: #e8e8ec; }
+    body { margin: 0; padding: 24px; max-width: 1100px; }
+    h1 { font-size: 1.25rem; font-weight: 600; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #9aa; }
+    input, select, button { padding: 8px 10px; border-radius: 6px; border: 1px solid #333; background: #1a1d24; color: inherit; }
+    button { cursor: pointer; background: #2d4a7f; border-color: #3d5a9f; }
+    button:hover { filter: brightness(1.1); }
+    button.danger { background: #5a2d2d; border-color: #7a3d3d; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #292d36; }
+    th { color: #9aa; font-weight: 500; }
+    tr:hover td { background: #161923; }
+    .msg { font-size: 13px; margin-top: 12px; color: #8af; }
+    .err { color: #f88; }
+    code { font-size: 12px; background: #1a1d24; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Cheating-Dev user admin</h1>
+  <p style="font-size: 13px; color: #9aa;">Set your admin key (from server <code>.env</code> <code>ADMIN_API_KEY</code>), then load users. API base defaults to this host.</p>
+
+  <div class="row">
+    <label>API base
+      <input id="apiBase" type="text" size="40" placeholder="http://127.0.0.1:3847" />
+    </label>
+    <label>Admin key
+      <input id="adminKey" type="password" size="32" autocomplete="off" />
+    </label>
+    <button type="button" id="saveKey">Remember key (session)</button>
+    <button type="button" id="loadUsers">Load users</button>
+  </div>
+
+  <div id="message" class="msg"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Email</th>
+        <th>Plan</th>
+        <th>Status</th>
+        <th>Trial ends</th>
+        <th>Period end</th>
+        <th>Disabled</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const apiBase = () => ($('apiBase').value || window.location.origin).replace(/\/$/, '');
+    const adminKey = () => $('adminKey').value.trim();
+
+    function loadStored() {
+      $('apiBase').value = sessionStorage.getItem('adminApiBase') || '';
+      $('adminKey').value = sessionStorage.getItem('adminKey') || '';
+    }
+
+    $('saveKey').onclick = () => {
+      sessionStorage.setItem('adminApiBase', $('apiBase').value.trim());
+      sessionStorage.setItem('adminKey', adminKey());
+      $('message').textContent = 'Saved for this browser tab session.';
+      $('message').className = 'msg';
+    };
+
+    async function api(path, opts = {}) {
+      const key = adminKey();
+      if (!key) throw new Error('Admin key required');
+      const r = await fetch(apiBase() + path, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Key': key,
+          ...(opts.headers || {}),
+        },
+      });
+      const text = await r.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+      if (!r.ok) throw new Error(data.error || r.statusText || 'Request failed');
+      return data;
+    }
+
+    function rowTpl(u) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.id}</td>
+        <td>${u.email}</td>
+        <td><input data-id="${u.id}" class="plan" value="${u.plan}" /></td>
+        <td>
+          <select data-id="${u.id}" class="st">
+            ${['active','trialing','past_due','canceled'].map(s =>
+              `<option value="${s}" ${u.subscriptionStatus === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td><input data-id="${u.id}" class="trial" type="text" value="${u.trialEndsAt || ''}" placeholder="ISO or empty" /></td>
+        <td><input data-id="${u.id}" class="period" type="text" value="${u.currentPeriodEnd || ''}" placeholder="ISO or empty" /></td>
+        <td><input data-id="${u.id}" class="dis" type="checkbox" ${u.disabled ? 'checked' : ''} /></td>
+        <td><button type="button" class="save" data-id="${u.id}">Save</button></td>
+      `;
+      return tr;
+    }
+
+    $('loadUsers').onclick = async () => {
+      $('message').textContent = '';
+      try {
+        const { users } = await api('/admin/users');
+        const tb = $('tbody');
+        tb.innerHTML = '';
+        for (const u of users) tb.appendChild(rowTpl(u));
+        tb.querySelectorAll('.save').forEach((btn) => {
+          btn.onclick = async () => {
+            const id = btn.dataset.id;
+            const tr = btn.closest('tr');
+            const body = {
+              plan: tr.querySelector('.plan').value.trim(),
+              subscriptionStatus: tr.querySelector('.st').value,
+              trialEndsAt: tr.querySelector('.trial').value.trim() || null,
+              currentPeriodEnd: tr.querySelector('.period').value.trim() || null,
+              disabled: tr.querySelector('.dis').checked,
+            };
+            try {
+              await api('/admin/users/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+              $('message').textContent = 'Saved user ' + id;
+              $('message').className = 'msg';
+            } catch (e) {
+              $('message').textContent = e.message;
+              $('message').className = 'msg err';
+            }
+          };
+        });
+      } catch (e) {
+        $('message').textContent = e.message;
+        $('message').className = 'msg err';
+      }
+    };
+
+    loadStored();
+  </script>
+</body>
+</html>
