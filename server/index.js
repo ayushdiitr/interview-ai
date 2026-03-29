@@ -18,6 +18,8 @@ const {
 } = require('./auth-logic');
 
 const PORT = Number(process.env.PORT) || 3847;
+/** Bind on all interfaces so PaaS proxies (Railway, Render, Fly) can reach the process. */
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 const TRIAL_DAYS = Number(process.env.TRIAL_DAYS) || 14;
@@ -102,8 +104,8 @@ function mountAdminAndListen(app, store) {
         res.status(500).json({ error: 'Internal server error' });
     });
 
-    app.listen(PORT, () => {
-        console.log(`[auth-api] listening on http://127.0.0.1:${PORT}`);
+    app.listen(PORT, LISTEN_HOST, () => {
+        console.log(`[auth-api] listening on http://${LISTEN_HOST}:${PORT}`);
     });
 }
 

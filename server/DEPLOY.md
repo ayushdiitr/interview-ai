@@ -13,6 +13,7 @@ End users run the **Electron** app and only need `AUTH_API_BASE` pointing at you
 | `TRIAL_DAYS` | No | Default `14` |
 | `CORS_ORIGINS` | Optional | Comma-separated origins allowed for CORS (e.g. `https://admin.example.com`) |
 | `ADMIN_STATIC_DIR` | Optional | Absolute path to built React admin (`admin-web/dist`). If unset, falls back to `server/admin/` legacy static |
+| `LISTEN_HOST` | Optional | Host to bind (default **`0.0.0.0`** for cloud; set `127.0.0.1` only if you deliberately want localhost-only) |
 
 Root project `.env` for Electron (build-time / local):
 
@@ -35,7 +36,8 @@ After first deploy, tables are created automatically from [`migrations/001_initi
 5. **Build command:** `cd admin-web && npm ci && npm run build && cd ../server && npm ci`
 6. **Start command:** `cd server && node index.js`
 7. **Optional:** set `ADMIN_STATIC_DIR` to `/app/admin-web/dist` so the API serves the built admin UI (Railway typically clones the repo at `/app`).
-8. **Electron / CI:** set `AUTH_API_BASE` in the environment when running `electron-forge make` / packaging so the desktop app points at the deployed API (never embed `ADMIN_API_KEY` or `JWT_SECRET` in the client).
+8. In the service **Settings**, click **Generate Domain** (or attach your own). The API listens on **`0.0.0.0`** and `$PORT` so the platform proxy can connect. Open **`/health`** to verify (`{"ok":true,...}`) and **`/admin`** for the React admin; there is no page at **`/`** (you may see “Cannot GET /”).
+9. **Electron / CI:** set `AUTH_API_BASE` in the environment when running `electron-forge make` / packaging so the desktop app points at the deployed API (never embed `ADMIN_API_KEY` or `JWT_SECRET` in the client).
 
 If you must use **Root Directory = `server`** (isolated backend context), you cannot build `admin-web` in the same service from that checkout. Use a separate Railway service with root `admin-web` for the static admin, or build `admin-web` in CI and copy `dist` into the server deploy via your own pipeline / image.
 
