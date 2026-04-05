@@ -78,37 +78,37 @@ jobs:
                   path: out/make/*.dmg
                   if-no-files-found: error
 
-    build-linux:
-        runs-on: ubuntu-latest
-        env:
-            # Workaround for onnxruntime-node GPU NuGet bug on Linux:
-            # skip optional GPU provider download during install
-            ONNXRUNTIME_NODE_INSTALL: skip
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
+    # build-linux:
+    #     runs-on: ubuntu-latest
+    #     env:
+    #         # Workaround for onnxruntime-node GPU NuGet bug on Linux:
+    #         # skip optional GPU provider download during install
+    #         ONNXRUNTIME_NODE_INSTALL: skip
+    #     steps:
+    #         - name: Checkout repo
+    #           uses: actions/checkout@v4
 
-            - name: Setup NodeJS
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 'lts/*'
-                  cache: 'npm'
+    #         - name: Setup NodeJS
+    #           uses: actions/setup-node@v4
+    #           with:
+    #               node-version: 'lts/*'
+    #               cache: 'npm'
 
-            - name: Install dependencies
-              run: npm install
+    #         - name: Install dependencies
+    #           run: npm install
 
-            - name: Run tests
-              run: npm test
+    #         - name: Run tests
+    #           run: npm test
 
-            - name: Build Electron app
-              run: npm run make
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #         - name: Build Electron app
+    #           run: npm run make
+    #           env:
+    #               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Upload Linux artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: cheating-dev-linux
-                  path: out/make/*.AppImage
-                  if-no-files-found: error
+    #         - name: Upload Linux artifact
+    #           uses: actions/upload-artifact@v4
+    #           with:
+    #               name: cheating-dev-linux
+    #               path: out/make/*.AppImage
+    #               if-no-files-found: error
 
