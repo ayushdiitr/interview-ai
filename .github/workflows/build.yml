@@ -3,6 +3,8 @@ name: Build & Release
 on:
     push:
         branches: [main]
+        tags:
+            - "v*" # This triggers the workflow when you push a tag like v1.0.0-alpha
     pull_request:
         branches: [main]
     workflow_dispatch:
@@ -42,7 +44,8 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: cheating-dev-windows
-                  path: out/make/squirrel.windows/**/*
+                  # Using a wildcard to catch the setup/installer files
+                  path: out/make/squirrel.windows/x64/*.exe 
                   if-no-files-found: error
 
     build-macos:
@@ -78,37 +81,31 @@ jobs:
                   path: out/make/*.dmg
                   if-no-files-found: error
 
-    # build-linux:
-    #     runs-on: ubuntu-latest
-    #     env:
-    #         # Workaround for onnxruntime-node GPU NuGet bug on Linux:
-    #         # skip optional GPU provider download during install
-    #         ONNXRUNTIME_NODE_INSTALL: skip
-    #     steps:
-    #         - name: Checkout repo
-    #           uses: actions/checkout@v4
+    release:
+        name: Create GitHub Release
+        runs-on: ubuntu-latest
+        # Only run this job if a tag was pushed (e.g., v1.0.0-alpha)
+        if: startsWith(github.ref, 'refs/tags/') 
+        needs: [build-windows, build-macos]
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
 
-    #         - name: Setup NodeJS
-    #           uses: actions/setup-node@v4
-    #           with:
-    #               node-version: 'lts/*'
-    #               cache: 'npm'
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: dist-assets
 
-    #         - name: Install dependencies
-    #           run: npm install
-
-    #         - name: Run tests
-    #           run: npm test
-
-    #         - name: Build Electron app
-    #           run: npm run make
-    #           env:
-    #               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    #         - name: Upload Linux artifact
-    #           uses: actions/upload-artifact@v4
-    #           with:
-    #               name: cheating-dev-linux
-    #               path: out/make/*.AppImage
-    #               if-no-files-found: error
-
+            - name: Create Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  name: 🚀 ${{ github.ref_name }} — Alpha Release
+                  # This automatically generates the "What's Changed" section
+                  generate_release_notes: true 
+                  # Mark as pre-release if the tag contains 'alpha' or 'beta'
+                  prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+                  files: |
+                      dist-assets/cheating-dev-windows/**/*.exe
+                      dist-assets/cheating-dev-macos/*.dmg
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
